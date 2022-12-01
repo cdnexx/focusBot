@@ -17,26 +17,11 @@ public class focusBot extends AdvancedRobot{
         setColors(Color.black, Color.yellow, Color.red);
         setBulletColor(Color.MAGENTA);
 
-        // moveAmount = Math.max(getBattleFieldWidth(), getBattleFieldHeight());
-        // peek=false;
-
-        // turnLeft(getHeading()%90);
-        // ahead(moveAmount);
-
-        // peek=true;
-        // turnRight(90);
-
         while(true){
             if(getRadarTurnRemaining()==0.0){
                 setTurnRadarRightRadians(Double.POSITIVE_INFINITY);
             }
             crazyMovement();
-            // if(getOthers()>4){
-            //     wallMovement();
-            // }else{
-            //     crazyMovement();
-            // }
-            
         }
     }
 
@@ -54,13 +39,10 @@ public class focusBot extends AdvancedRobot{
     }
     public void onHitWall(HitWallEvent e){
         reverseDirection();
-        // if(getOthers()>4){
-        //     reverseDirection();
-        // }
     }
 
     // ------------------------ Functions ------------------------
-	public void crazyMovement(){
+	public void crazyMovement(){ //Crazy bot movement
 		setAhead(4000);
 		movingForward=true;
 		setTurnRight(90);
@@ -71,14 +53,7 @@ public class focusBot extends AdvancedRobot{
 		waitFor(new TurnCompleteCondition(this));
 	}
 
-    public void wallMovement(){
-        peek=true;
-        ahead(moveAmount);
-        peek=false;
-        turnRight(90);       
-    }
-
-	public void reverseDirection() {
+	public void reverseDirection() { //Reverse direction on wall hit.
 		if (movingForward) {
 			setBack(40000);
 			movingForward = false;
@@ -87,25 +62,10 @@ public class focusBot extends AdvancedRobot{
 			movingForward = true;
 		}
 	}
-  
-    public void lockEnemy(ScannedRobotEvent e){
-		double angleToEnemy = getHeadingRadians() + e.getBearingRadians();
-		double radarTurn = Utils.normalRelativeAngle(angleToEnemy-getRadarHeadingRadians());
-		double extraTurn = Math.min( Math.atan( 36 / e.getDistance() ), Rules.RADAR_TURN_RATE_RADIANS );
-		if(radarTurn<0){
-			radarTurn -= extraTurn;
-		}else{
-			radarTurn += extraTurn;
-		}
-		setTurnRadarRightRadians(radarTurn);
-        linearPredictedAim(e, determinePower(e));        
-    }
 
-    public void angularPredictedAim(ScannedRobotEvent e){
+    public void angularPredictedAim(ScannedRobotEvent e){ //Predicted aim based on the bot keeping the same turn rate.
         double bulletPower = determinePower(e);
         double absoluteBearing = getHeadingRadians() + e.getBearingRadians();
-        double enemyX = getX() + e.getDistance() * Math.sin(absoluteBearing);
-        double enemyY = getY() + e.getDistance() * Math.cos(absoluteBearing);
         double enemyHeading = e.getHeadingRadians();
         double enemyHeadingChange = enemyHeading - oldEnemyHeading;
         double enemyVelocity = e.getVelocity();
@@ -114,7 +74,7 @@ public class focusBot extends AdvancedRobot{
         double deltaTime = 0;
         double battleFieldHeight = getBattleFieldHeight(), 
                battleFieldWidth = getBattleFieldWidth();
-        double predictedX = enemyX, predictedY = enemyY;
+        double predictedX = enemyCoords(e)[0], predictedY = enemyCoords(e)[1];
         while((++deltaTime) * (20.0 - 3.0 * bulletPower) < Math.hypot(Math.abs(getX()-predictedX), Math.abs(getY()-predictedY))){		
             predictedX += Math.sin(enemyHeading) * enemyVelocity;
             predictedY += Math.cos(enemyHeading) * enemyVelocity;
@@ -128,12 +88,12 @@ public class focusBot extends AdvancedRobot{
             }
         }
         double theta = Utils.normalAbsoluteAngle(Math.atan2(predictedX - getX(), predictedY - getY()));
-        setTurnRadarRightRadians(Utils.normalRelativeAngle(absoluteBearing - getRadarHeadingRadians()));
-        setTurnGunRightRadians(Utils.normalRelativeAngle(theta - getGunHeadingRadians()));
+        setTurnRadarRightRadians(Utils.normalRelativeAngle(absoluteBearing - getRadarHeadingRadians())); //lock enemy
+        setTurnGunRightRadians(Utils.normalRelativeAngle(theta - getGunHeadingRadians())); //aim to enemy
         setFire(bulletPower);
     }
 
-	public void linearPredictedAim(ScannedRobotEvent e, double bulletPower){ //Linear predicted aim.
+    public void linearPredictedAim(ScannedRobotEvent e, double bulletPower){ //Linear predicted aim.
 		double bulletSpeed = 20-(3*bulletPower);
 		double deltaTime = 0;
 		double predictedX = enemyCoords(e)[0];
@@ -150,7 +110,7 @@ public class focusBot extends AdvancedRobot{
 		setFire(bulletPower);
 	}
 
-	public double[] enemyCoords(ScannedRobotEvent e){ //Returns enemy coords.
+    public double[] enemyCoords(ScannedRobotEvent e){ //Returns enemy coords.
 		double myX = getX();
 		double myY = getY();
 		double absBearing = e.getBearingRadians()+getHeadingRadians();
@@ -160,7 +120,7 @@ public class focusBot extends AdvancedRobot{
 		return coords;
 	}
 
-	public double determinePower(ScannedRobotEvent e){
+	public double determinePower(ScannedRobotEvent e){ // Determine fire power based on enemy distance.
 		if(e.getDistance()>300){
 			return 2;
 		}
